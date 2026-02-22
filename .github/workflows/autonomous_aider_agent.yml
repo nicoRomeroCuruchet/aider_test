@@ -1,6 +1,7 @@
 # =============================================================================
-# Autonomous AI Issue Resolver - Production Grade
-# Optimized for: Debian + RTX 3070 + Ollama 
+# Autonomous AI Issue Resolver Workflow
+# Triggered upon issue creation. Relies on a self-hosted runner to access
+# local edge LLM infrastructure securely.
 # =============================================================================
 name: Autonomous Aider Agent
 on:
@@ -24,19 +25,20 @@ jobs:
           git config --global user.email "aider-bot@local.cluster"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Setup Dynamic Feature Branch
+        id: branch_setup
+        run: |
+          BRANCH_NAME="feature/issue-${{ github.event.issue.number }}-auto-resolve"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
       - name: Execute Aider Orchestrator
         env:
           AIDER_BIN: /home/nromero/.local/bin/aider
           OLLAMA_API_BASE: "http://127.0.0.1:11434"
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          BRANCH_NAME="feature/issue-$ISSUE_NUMBER-auto-resolve"
-          git checkout -b "$BRANCH_NAME"
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-
-          echo "Using Python: $(/usr/bin/python3 --version)"
           /usr/bin/python3 scripts/agent_orchestrator.py
 
       - name: Push Branch and Create Pull Request
