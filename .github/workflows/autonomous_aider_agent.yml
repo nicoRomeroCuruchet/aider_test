@@ -12,11 +12,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Diagnostic Check
+      - name: 🛠 Debug Real (Para saber qué ve el Runner)
         run: |
           echo "Directorio actual: $(pwd)"
-          echo "Contenido del directorio scripts:"
-          ls -R scripts/ || echo "La carpeta scripts no existe en este directorio"
+          echo "Contenido de la carpeta scripts:"
+          ls -R scripts/ || echo "NO EXISTE LA CARPETA SCRIPTS"
 
       - name: Configure Git
         run: |
@@ -31,19 +31,15 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          BRANCH_NAME="feature/issue-${{ github.event.issue.number }}-auto-resolve"
-          git checkout -b "$BRANCH_NAME"
-          # Usamos python3 y ruta relativa desde el root del checkout
+          # Crear rama para el fix
+          git checkout -b "feature/issue-${{ github.event.issue.number }}-fix"
+          # Ejecución con el binario explícito de Debian
           /usr/bin/python3 ./scripts/agent_orchestrator.py
 
-      - name: Push and PR
+      - name: Push y PR
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git push origin feature/issue-${{ github.event.issue.number }}-auto-resolve
-          gh pr create \
-            --title "Fix: ${{ github.event.issue.title }} (Auto-Resolved)" \
-            --body "Auto-fix via Aider agent." \
-            --head feature/issue-${{ github.event.issue.number }}-auto-resolve \
-            --base main
+          git push origin HEAD
+          gh pr create --title "Fix: ${{ github.event.issue.title }}" --body "Auto-fix" --base main
