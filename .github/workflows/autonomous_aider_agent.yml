@@ -12,14 +12,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 🔍 Inspeccion Forense (Debug)
+      - name: Diagnostic Check
         run: |
-          echo "=== DONDE ESTOY? ==="
-          pwd
-          echo "=== QUE ARCHIVOS VEO REALMENTE? ==="
-          find . -maxdepth 3 -not -path '*/.*'
-          echo "=== VARIABLE WORKSPACE ==="
-          echo "${{ github.workspace }}"
+          echo "Directorio actual: $(pwd)"
+          echo "Contenido del directorio scripts:"
+          ls -R scripts/ || echo "La carpeta scripts no existe en este directorio"
 
       - name: Configure Git
         run: |
@@ -33,13 +30,13 @@ jobs:
           OLLAMA_API_BASE: http://127.0.0.1:11434
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
-        # Usamos el path relativo al root del repo que acaba de bajar
         run: |
           BRANCH_NAME="feature/issue-${{ github.event.issue.number }}-auto-resolve"
           git checkout -b "$BRANCH_NAME"
+          # Usamos python3 y ruta relativa desde el root del checkout
           /usr/bin/python3 ./scripts/agent_orchestrator.py
 
-      - name: Push Branch and Create Pull Request
+      - name: Push and PR
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,6 +44,6 @@ jobs:
           git push origin feature/issue-${{ github.event.issue.number }}-auto-resolve
           gh pr create \
             --title "Fix: ${{ github.event.issue.title }} (Auto-Resolved)" \
-            --body "Auto-fix via Aider." \
+            --body "Auto-fix via Aider agent." \
             --head feature/issue-${{ github.event.issue.number }}-auto-resolve \
             --base main
