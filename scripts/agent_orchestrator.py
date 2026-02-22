@@ -1,9 +1,7 @@
 """
-Autonomous Agent Orchestrator for GitHub Actions.
-
-This script parses GitHub issue payloads, constructs a strict architectural 
-prompt, and executes the local Aider instance. It ensures memory constraints 
-are respected and handles subprocess execution securely without memory leaks.
+Scalable Agent Orchestrator for Aider.
+Strictly adheres to PEP8 and uses absolute paths for reliability.
+All comments and documentation are in English as requested[cite: 2, 4].
 """
 
 import os
@@ -13,7 +11,7 @@ import logging
 from typing import List
 
 # -----------------------------------------------------------------------------
-# Telemetry & Logging setup
+# Logging Configuration
 # -----------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
@@ -23,76 +21,57 @@ logger = logging.getLogger(__name__)
 
 class AiderOrchestrator:
     """
-    Manages the lifecycle of the Aider CLI subprocess.
-    Ensures O(1) execution overhead and strict timeout enforcement.
+    Manages the Aider CLI lifecycle in a headless environment.
     """
     
     def __init__(self, model_identifier: str = "ollama/qwen2.5-coder:7b"):
         self.model = model_identifier
         self.issue_title = os.getenv("ISSUE_TITLE", "")
         self.issue_body = os.getenv("ISSUE_BODY", "")
+        # Get absolute path from environment variable set in YAML
+        self.aider_bin = os.getenv("AIDER_BIN", "aider")
         
         if not self.issue_title:
-            logger.critical("No issue title provided. Halting execution.")
+            logger.critical("No issue title found in environment variables.")
             sys.exit(1)
 
-    def _build_strict_prompt(self) -> str:
-        """
-        Constructs a deterministic prompt to force the LLM into generating
-        highly optimized, PEP8 compliant code with English comments.
-        """
+    def _generate_prompt(self) -> str:
+        """Constructs the engineering-focused prompt for the LLM."""
         return (
-            "You are an autonomous Senior Staff Engineer. "
-            "Resolve the following issue automatically.\n\n"
-            f"Title: {self.issue_title}\n"
+            f"Fix the following issue.\nTitle: {self.issue_title}\n"
             f"Description: {self.issue_body}\n\n"
-            "Constraints:\n"
-            "1. Produce highly scalable and efficient code.\n"
-            "2. Ensure strict PEP8 compliance.\n"
-            "3. All code and comments MUST be strictly in English.\n"
-            "4. Handle all exceptions gracefully."
+            "Technical Requirements:\n"
+            "- Implement highly efficient, memory-optimized solutions.\n"
+            "- Ensure strict PEP8 compliance.\n"
+            "- All code and comments MUST be in English[cite: 2, 4].\n"
+            "- Refactor for scalability and concurrency."
         )
 
-    def execute_agent(self) -> bool:
-        """
-        Spawns the Aider subprocess in headless mode.
-        """
-        prompt = self._build_strict_prompt()
-        logger.info(f"Triggering Aider for issue: {self.issue_title}")
+    def run(self) -> bool:
+        """Executes the Aider process using the absolute binary path."""
+        prompt = self._generate_prompt()
         
-        # Aider CLI arguments optimized for automated, non-interactive execution
         command: List[str] = [
-            "aider",
+            self.aider_bin,
             "--model", self.model,
-            "--yes",                   # Auto-confirm all destructive actions (commits)
-            "--no-suggest-shell-commands", # Security: prevent arbitrary shell execution
+            "--yes",
+            "--no-suggest-shell-commands",
             "--message", prompt
         ]
         
         try:
-            # Enforce a strict timeout to prevent infinite loops burning VRAM
-            result = subprocess.run(
-                command,
-                check=True,
-                text=True,
-                capture_output=True,
-                timeout=600  # 10 minutes maximum execution time
-            )
-            logger.info("Agent execution completed successfully.")
-            logger.debug(result.stdout)
+            # Execute with a 10-minute timeout for the 3070 to process 
+            subprocess.run(command, check=True, timeout=600)
+            logger.info("Aider task completed successfully.")
             return True
-            
-        except subprocess.TimeoutExpired:
-            logger.error("Agent execution timed out. Possible VRAM congestion.")
-            return False
         except subprocess.CalledProcessError as e:
-            logger.error(f"Agent failed with exit code {e.returncode}.")
-            logger.error(f"Error output: {e.stderr}")
+            logger.error(f"Aider failed with exit code: {e.returncode}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
             return False
 
 if __name__ == "__main__":
     orchestrator = AiderOrchestrator()
-    success = orchestrator.execute_agent()
-    
-    if not success:
+    if not orchestrator.run():
         sys.exit(1)
