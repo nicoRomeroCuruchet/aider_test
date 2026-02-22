@@ -1,6 +1,6 @@
 # =============================================================================
-# Autonomous AI Issue Resolver - Absolute Path Edition
-# Optimized for: Debian + RTX 3070 
+# Autonomous AI Agent Workflow - Final Production Version
+# Optimized for Debian systems with specific binary paths.
 # =============================================================================
 
 name: Autonomous Aider Agent
@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure Git for Autonomous Agent
+      - name: Configure Git Identity
         run: |
           git config --global user.name "Aider-Bot"
           git config --global user.email "aider-bot@local.cluster"
@@ -30,7 +30,7 @@ jobs:
 
       - name: Execute Aider Orchestrator
         env:
-          # Using the absolute paths discovered in your system 
+          # Absolute paths verified via 'which' command
           PYTHON_BIN: /usr/bin/python3
           AIDER_BIN: /home/nromero/.local/bin/aider
           OLLAMA_API_BASE: "http://127.0.0.1:11434"
@@ -38,12 +38,12 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          # 1. Create a clean branch for the fix
+          # 1. Branching strategy: Isolate the fix in a dedicated feature branch
           BRANCH_NAME="feature/issue-$ISSUE_NUMBER-auto-fix"
           git checkout -b "$BRANCH_NAME"
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
           
-          # 2. Execute the orchestrator using absolute Python path
+          # 2. Execution: Calling the orchestrator with the verified Python binary
           $PYTHON_BIN scripts/agent_orchestrator.py
 
       - name: Push and Create Pull Request
@@ -51,12 +51,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Push the committed changes to the remote
+          # Push the changes committed by Aider to the remote origin
           git push origin ${{ env.BRANCH_NAME }}
           
-          # Create the PR using GitHub CLI
+          # Use GitHub CLI to autonomously open the Pull Request
           gh pr create \
             --title "Fix: ${{ github.event.issue.title }} (Auto-Resolved)" \
-            --body "Autonomous resolution for issue #${{ github.event.issue.number }}." \
+            --body "Autonomous AI resolution for issue #${{ github.event.issue.number }} using local DGX/RTX cluster." \
             --head ${{ env.BRANCH_NAME }} \
             --base main
