@@ -1,7 +1,17 @@
+# =============================================================================
+# Autonomous AI Issue Resolver - High-Reliability Edition
+# Target Environment: Debian 12 | RTX 3070 | Python 3.11+
+# =============================================================================
+
 name: Autonomous Aider Agent
+
 on:
   issues:
     types: [opened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  cancel-in-progress: true
 
 jobs:
   resolve-issue:
@@ -12,37 +22,44 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Debug and Pre-flight Check
+      - name: Diagnostic: Verify Filesystem Structure
         run: |
-          echo "Checking environment..."
-          which python3 || echo "python3 NOT FOUND"
-          which aider || echo "aider NOT FOUND"
-          ls -l scripts/agent_orchestrator.py || echo "Script NOT FOUND"
+          echo "Current Workspace: ${{ github.workspace }}"
+          echo "Listing all files in workspace to verify structure:"
+          find ${{ github.workspace }} -maxdepth 3 -not -path '*/.*'
 
-      - name: Configure Git
+      - name: Configure Git for Autonomous Agent
         run: |
           git config --global user.name "Aider-Bot"
           git config --global user.email "aider-bot@local.cluster"
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "${{ github.workspace }}"
 
       - name: Execute Aider Orchestrator
         env:
+          # Using absolute paths and verified environment variables
           AIDER_BIN: /home/nromero/.local/bin/aider
           OLLAMA_API_BASE: "http://127.0.0.1:11434"
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          # Use absolute path to Python 3 explicitly
-          /usr/bin/python3 scripts/agent_orchestrator.py
+          # 1. Branching strategy
+          BRANCH_NAME="feature/issue-${{ github.event.issue.number }}-auto-resolve"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          
+          # 2. Execution with absolute workspace pathing to prevent Errno 2
+          /usr/bin/python3 "${{ github.workspace }}/scripts/agent_orchestrator.py"
 
-      - name: Push and PR
+      - name: Push Branch and Create Pull Request
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git push origin feature/issue-${{ github.event.issue.number }}-auto-resolve
+          git push origin ${{ env.BRANCH_NAME }}
+          
           gh pr create \
             --title "Fix: ${{ github.event.issue.title }} (Auto-Resolved)" \
-            --body "Autonomous resolution for issue #${{ github.event.issue.number }}." \
-            --head feature/issue-${{ github.event.issue.number }}-auto-resolve \
+            --body "Autonomous resolution for issue #${{ github.event.issue.number }} generated via local LLM infrastructure." \
+            --head ${{ env.BRANCH_NAME }} \
             --base main
