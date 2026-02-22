@@ -3,7 +3,6 @@ Scalable Agent Orchestrator for Aider execution.
 Strictly adheres to PEP8 and high-performance standards.
 Uses absolute paths provided by the environment for maximum reliability.
 """
-
 import os
 import sys
 import subprocess
@@ -19,20 +18,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 class AiderOrchestrator:
     """
     Manages the lifecycle of an autonomous Aider agent session.
     """
-    
+
     def __init__(self, model: str = "ollama/qwen2.5-coder:7b"):
         self.model = model
         self.issue_title = os.getenv("ISSUE_TITLE", "")
         self.issue_body = os.getenv("ISSUE_BODY", "")
-        # Retrieve the absolute path for the Aider binary
         self.aider_bin = os.getenv("AIDER_BIN", "/home/nromero/.local/bin/aider")
-        
+
         if not self.issue_title:
             logger.critical("ISSUE_TITLE environment variable is missing.")
+            sys.exit(1)
+
+        if not os.path.isfile(self.aider_bin):
+            logger.critical(f"Aider binary not found at: {self.aider_bin}")
             sys.exit(1)
 
     def _prepare_prompt(self) -> str:
@@ -50,27 +53,30 @@ class AiderOrchestrator:
     def run_agent(self) -> bool:
         """Spawns the Aider subprocess in headless mode."""
         prompt = self._prepare_prompt()
-        
-        # Command assembly using the absolute binary path
+
         cmd: List[str] = [
             self.aider_bin,
             "--model", self.model,
             "--yes",
             "--message", prompt
         ]
-        
+
         try:
             logger.info(f"Starting Aider session for issue: {self.issue_title}")
-            # Execute with a 10-minute timeout for local inference
+            logger.info(f"Using Aider binary: {self.aider_bin}")
             subprocess.run(cmd, check=True, timeout=600)
             logger.info("Aider session completed and changes committed.")
             return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Aider failed with exit code {e.returncode}.")
             return False
+        except subprocess.TimeoutExpired:
+            logger.error("Aider session timed out after 600 seconds.")
+            return False
         except Exception as e:
             logger.error(f"An unexpected infrastructure error occurred: {e}")
             return False
+
 
 if __name__ == "__main__":
     orchestrator = AiderOrchestrator()
