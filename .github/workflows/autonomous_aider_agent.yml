@@ -12,11 +12,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 🔍 Inspeccion Forense (Debug)
+        run: |
+          echo "=== DONDE ESTOY? ==="
+          pwd
+          echo "=== QUE ARCHIVOS VEO REALMENTE? ==="
+          find . -maxdepth 3 -not -path '*/.*'
+          echo "=== VARIABLE WORKSPACE ==="
+          echo "${{ github.workspace }}"
+
       - name: Configure Git
         run: |
           git config --global user.name "Aider-Bot"
           git config --global user.email "aider-bot@local.cluster"
-          git config --global --add safe.directory "${{ github.workspace }}"
+          git config --global --add safe.directory "*"
 
       - name: Execute Aider Orchestrator
         env:
@@ -24,24 +33,20 @@ jobs:
           OLLAMA_API_BASE: http://127.0.0.1:11434
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
+        # Usamos el path relativo al root del repo que acaba de bajar
         run: |
-          # 1. Crear rama
           BRANCH_NAME="feature/issue-${{ github.event.issue.number }}-auto-resolve"
           git checkout -b "$BRANCH_NAME"
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-          
-          # 2. Ejecución con PATH ABSOLUTO del workspace
-          # Esto ignora si el runner anidó carpetas o no
-          /usr/bin/python3 "${{ github.workspace }}/scripts/agent_orchestrator.py"
+          /usr/bin/python3 ./scripts/agent_orchestrator.py
 
       - name: Push Branch and Create Pull Request
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git push origin ${{ env.BRANCH_NAME }}
+          git push origin feature/issue-${{ github.event.issue.number }}-auto-resolve
           gh pr create \
             --title "Fix: ${{ github.event.issue.title }} (Auto-Resolved)" \
-            --body "Autonomous resolution for issue #${{ github.event.issue.number }}." \
-            --head ${{ env.BRANCH_NAME }} \
+            --body "Auto-fix via Aider." \
+            --head feature/issue-${{ github.event.issue.number }}-auto-resolve \
             --base main
